@@ -3,6 +3,7 @@
 #include <iostream>
 #include <chrono>
 #include <fstream>
+#include <cassert>
 
 namespace MT {
     static const int N = 624;
@@ -55,15 +56,25 @@ namespace MT {
 int main() {
     std::ofstream outFile("Results.txt");
     auto start = std::chrono::high_resolution_clock::now();
+    // Test for failure
+    int testseed = 1000686894;
+    MT::init(testseed);
+    uint32_t first = MT::extract();
+    uint32_t second = MT::extract();
+    assert(second == 1);
+    outFile << "Starting search";
+
     for (int seed = 0; seed <=INT_MAX; seed++){
         MT::init(seed);
         uint32_t first = MT::extract();
         if (first >= -1 && first <= 1) {
             outFile << "Seed: " << seed << " produces first output: " << first << std::endl;
+            std::cout << "Seed: " << seed << " produces first output: " << first << std::endl;
         }
         uint32_t second = MT::extract();
         if (second >= -1 && second <= 1) {
             outFile << "Seed: " << seed << " produces second output: " << second << std::endl;
+            std::cout << "Seed: " << seed << " produces second output: " << second << std::endl;
         }
         if (seed % 10000000 == 0) {
             auto end = std::chrono::high_resolution_clock::now();
