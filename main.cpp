@@ -4,6 +4,7 @@
 #include <chrono>
 #include <fstream>
 #include <cassert>
+#include <omp.h>  // Added for OpenMP parallelism
 
 namespace MT {
     static const int N = 624;
@@ -56,31 +57,61 @@ namespace MT {
 int main() {
     std::ofstream outFile("Results.txt");
     auto start = std::chrono::high_resolution_clock::now();
-    // Test for failure
-    int testseed = 1000686894;
-    MT::init(testseed);
+    // Test 1
+    int testseed1 = 1000686894;
+    MT::init(testseed1);
     uint32_t first = MT::extract();
     uint32_t second = MT::extract();
     assert(second == 1);
     outFile << "Starting search";
-
+    //Test 2
+    int testseed2 = 1669320484;
+    MT::init(testseed2);
+    uint32_t first2 = MT::extract();
+    uint32_t second2 = MT::extract();
+    assert(second2 == first2+1);
+    #pragma omp parallel for  // Added OpenMP parallel for loop
     for (int seed = 0; seed <=INT_MAX; seed++){
         MT::init(seed);
         uint32_t first = MT::extract();
         if (first >= -1 && first <= 1) {
-            outFile << "Seed: " << seed << " produces first output: " << first << std::endl;
-            std::cout << "Seed: " << seed << " produces first output: " << first << std::endl;
+            #pragma omp critical  // Protect output
+            {
+                outFile << "Seed: " << seed << " produces first output: " << first << std::endl;
+                std::cout << "Seed: " << seed << " produces first output: " << first << std::endl;
+            }
         }
         uint32_t second = MT::extract();
         if (second >= -1 && second <= 1) {
-            outFile << "Seed: " << seed << " produces second output: " << second << std::endl;
-            std::cout << "Seed: " << seed << " produces second output: " << second << std::endl;
+            #pragma omp critical
+            {
+                outFile << "Seed: " << seed << " produces second output: " << second << std::endl;
+                std::cout << "Seed: " << seed << " produces second output: " << second << std::endl;
+            }
+        }
+        if (second - first >= -1 && second - first <= 1) {
+            #pragma omp critical
+            {
+                outFile << "Seed: " << seed << " produces first output: " << first << " and second output: " << second << std::endl;
+                std::cout << "Seed: " << seed << " produces first output: " << first << " and second output: " << second << std::endl;
+            }
+        }
+        uint32_t third = MT::extract();
+        if (third >= -1 && third <= 1) {
+            #pragma omp critical
+            {
+                outFile << "Seed: " << seed << " produces third output: " << third << std::endl;
+                std::cout << "Seed: " << seed << " produces third output: " << third << std::endl;
+            }
         }
         if (seed % 10000000 == 0) {
-            auto end = std::chrono::high_resolution_clock::now();
-            std::cout << "Checked up to seed: " << seed << "   ";
-            std::cout << "Percentage: " << (static_cast<double>(seed) / INT_MAX) * 100 << "%" <<"   ";
-            std::cout << "eta: " << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() * (static_cast<double>(INT_MAX - seed) / seed) << " seconds" << std::endl;
+            #pragma omp critical
+            {
+                auto end = std::chrono::high_resolution_clock::now();
+                std::cout << "Checked up to seed: " << seed << "   ";
+                std::cout << "Percentage: " << (static_cast<double>(seed) / INT_MAX) * 100 << "%" <<"   ";
+                std::cout << "eta: " << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() * (static_cast<double>(INT_MAX - seed) / seed) << " seconds" << std::endl;
+            }
         }
     }
 }
