@@ -58,11 +58,11 @@ int main() {
     for (int seed = 0; seed <=INT_MAX; seed++){
         MT::init(seed);
         uint32_t first = MT::extract();
-        if (first == 0) {
+        if (first >= -1 && first <= 1) {
             outFile << "Seed: " << seed << " produces first output: " << first << std::endl;
         }
         uint32_t second = MT::extract();
-        if (second == 0){
+        if (second >= -1 && second <= 1) {
             outFile << "Seed: " << seed << " produces second output: " << second << std::endl;
         }
         if (seed % 10000000 == 0) {
