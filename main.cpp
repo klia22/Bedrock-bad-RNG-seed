@@ -1,6 +1,7 @@
 #include <cstdint>
 #include <climits>
 #include <iostream>
+#include <iomanip>
 #include <chrono>
 #include <fstream>
 #include <cassert>
@@ -16,6 +17,7 @@ namespace MT {
 
     static uint32_t mt[N];
     static int index = N + 1;
+#pragma omp threadprivate(mt, index)
 
     static void twist() {
         for (int i = 0; i < N; ++i) {
@@ -80,6 +82,8 @@ int main() {
     uint32_t second2 = MT::extract();
     std::cout << "Test2: first2=" << first2 << ", second2=" << second2 << std::endl;
     // assert(second2 == first2+1);
+    long long total_processed = 0;
+    long long last_reported = 0;
     #pragma omp parallel for  // Added OpenMP parallel for loop
     for (long long seed = INT_MIN; seed <= INT_MAX; seed++){
         MT::init(static_cast<uint32_t>(seed));
@@ -114,13 +118,16 @@ int main() {
                 std::cout << "Seed: " << seed << " produces third output: " << third << std::endl;
             }
         }
-        if (seed % 10000000 == 0) {
+        #pragma omp atomic
+        total_processed++;
+        if (total_processed - last_reported >= 10000000) {
             #pragma omp critical
             {
+                last_reported = total_processed;
                 auto end = std::chrono::high_resolution_clock::now();
-                std::cout << "Checked up to seed: " << seed << "   ";
+                std::cout << "Processed: " << total_processed << " seeds   ";
                 double totalSeeds = static_cast<double>(INT_MAX) - static_cast<double>(INT_MIN) + 1.0;
-                double done = static_cast<double>(seed) - static_cast<double>(INT_MIN) + 1.0;
+                double done = static_cast<double>(total_processed);
                 double progress = done / totalSeeds;
                 double elapsedSeconds = std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count();
                 double etaSeconds = (progress > 0.0) ? elapsedSeconds * (1.0 - progress) / progress : 0.0;
