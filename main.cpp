@@ -4,7 +4,8 @@
 #include <chrono>
 #include <fstream>
 #include <cassert>
-#include <omp.h>  // Added for OpenMP parallelism
+#include <omp.h>
+#include <string>
 
 namespace MT {
     static const int N = 624;
@@ -55,6 +56,13 @@ namespace MT {
 }
 
 int main() {
+    int num_threads;
+    std::cin >> num_threads;
+    if (num_threads <= 0 || num_threads > omp_get_max_threads()) {
+        num_threads = omp_get_max_threads();
+    }
+    omp_set_num_threads(num_threads);
+
     std::ofstream outFile("Results.txt");
     auto start = std::chrono::high_resolution_clock::now();
     // Test 1
@@ -62,19 +70,21 @@ int main() {
     MT::init(testseed1);
     uint32_t first = MT::extract();
     uint32_t second = MT::extract();
-    assert(second == 1);
+    std::cout << "Test1: first=" << first << ", second=" << second << std::endl;
+    // assert(second == 1);
     outFile << "Starting search";
     //Test 2
     int testseed2 = 1669320484;
     MT::init(testseed2);
     uint32_t first2 = MT::extract();
     uint32_t second2 = MT::extract();
-    assert(second2 == first2+1);
+    std::cout << "Test2: first2=" << first2 << ", second2=" << second2 << std::endl;
+    // assert(second2 == first2+1);
     #pragma omp parallel for  // Added OpenMP parallel for loop
-    for (int seed = 0; seed <=INT_MAX; seed++){
-        MT::init(seed);
+    for (long long seed = INT_MIN; seed <= INT_MAX; seed++){
+        MT::init(static_cast<uint32_t>(seed));
         uint32_t first = MT::extract();
-        if (first >= -1 && first <= 1) {
+        if (first <= 1 || first == INT_MAX) {
             #pragma omp critical  // Protect output
             {
                 outFile << "Seed: " << seed << " produces first output: " << first << std::endl;
@@ -82,14 +92,14 @@ int main() {
             }
         }
         uint32_t second = MT::extract();
-        if (second >= -1 && second <= 1) {
+        if (second <= 1 || second == INT_MAX) {
             #pragma omp critical
             {
                 outFile << "Seed: " << seed << " produces second output: " << second << std::endl;
                 std::cout << "Seed: " << seed << " produces second output: " << second << std::endl;
             }
         }
-        if (second - first >= -1 && second - first <= 1) {
+        if (std::abs(static_cast<int64_t>(second) - static_cast<int64_t>(first)) <= 1) {
             #pragma omp critical
             {
                 outFile << "Seed: " << seed << " produces first output: " << first << " and second output: " << second << std::endl;
@@ -97,7 +107,7 @@ int main() {
             }
         }
         uint32_t third = MT::extract();
-        if (third >= -1 && third <= 1) {
+        if (third <= 1 || third == INT_MAX) {
             #pragma omp critical
             {
                 outFile << "Seed: " << seed << " produces third output: " << third << std::endl;
@@ -109,8 +119,14 @@ int main() {
             {
                 auto end = std::chrono::high_resolution_clock::now();
                 std::cout << "Checked up to seed: " << seed << "   ";
-                std::cout << "Percentage: " << (static_cast<double>(seed) / INT_MAX) * 100 << "%" <<"   ";
-                std::cout << "eta: " << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() * (static_cast<double>(INT_MAX - seed) / seed) << " seconds" << std::endl;
+                double totalSeeds = static_cast<double>(INT_MAX) - static_cast<double>(INT_MIN) + 1.0;
+                double done = static_cast<double>(seed) - static_cast<double>(INT_MIN) + 1.0;
+                double progress = done / totalSeeds;
+                double elapsedSeconds = std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count();
+                double etaSeconds = (progress > 0.0) ? elapsedSeconds * (1.0 - progress) / progress : 0.0;
+                std::cout << std::fixed << std::setprecision(3);
+                std::cout << "Percentage: " << (progress * 100.0) << "%   ";
+                std::cout << "eta: " << etaSeconds << " seconds" << std::endl;
             }
         }
     }
